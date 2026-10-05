@@ -1,0 +1,101 @@
+@* Sprint 003: Toont het scoped opleidingsoverzicht met categorie/doelgroepfilters en paginering. Datum, zaal en archive horen niet langer op de definitielijst. *@
+@using AalstAcademie.Web.Models.Domain
+@using AalstAcademie.Web.Models.Training
+@model TrainingIndexViewModel
+@{
+    ViewData["Title"] = Model.IsAdministrator ? "Opleidingen beheren" : "Mijn opleidingen";
+    var audienceValue = Model.Filter.Audience switch { TrainingAudienceFilter.Unassigned => "unassigned", TrainingAudienceFilter.AllDepartments => "allDepartments", TrainingAudienceFilter.SelectedDepartments => "selectedDepartments", _ => "all" };
+    var invalidAudience = ViewData.ModelState.TryGetValue("Audience", out var audienceState) && audienceState.Errors.Count > 0 ? audienceState.AttemptedValue : null;
+    var categoryValue = ViewData.ModelState.TryGetValue("CategoryId", out var categoryState) ? categoryState.AttemptedValue : Model.Filter.CategoryId?.ToString();
+    string AudienceLabel(TrainingAudienceScope scope) => scope switch { TrainingAudienceScope.AllDepartments => "Alle afdelingen", TrainingAudienceScope.SelectedDepartments => "Geselecteerde afdelingen", _ => "Nog toe te wijzen" };
+}
+@* De queryservice heeft de zichtbare records al op de actuele actor begrensd; de view biedt gewone GET-navigatie. *@
+<h1>@ViewData["Title"]</h1>
+<p>@(Model.IsAdministrator ? "Beheer opleidingen van alle lesgevers." : "Bekijk en beheer de opleidingen waarvan je eigenaar bent.")</p>
+<div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+<div class="training-actions mb-4">
+    <a class="btn btn-primary" asp-action="Create">Opleiding aanmaken</a>
+    @if (Model.IsAdministrator)
+    {
+        <a class="btn btn-outline-primary" asp-action="Index" asp-route-audience="unassigned">Nog toe te wijzen</a>
+        <a class="btn btn-outline-primary" asp-controller="Categories" asp-action="Index">Categorieën beheren</a>
+    }
+</div>
+@if (!Model.Page.HasCategories)
+{
+    <div class="alert alert-info" role="status">
+        <p class="mb-0">Er zijn nog geen categorieën. Een beheerder moet eerst een categorie aanmaken voordat een opleiding kan worden opgeslagen.</p>
+        @if (Model.IsAdministrator) { <a asp-controller="Categories" asp-action="Create">Eerste categorie aanmaken</a> }
+    </div>
+}
+@* Filters worden zonder JavaScript verstuurd; een nieuwe filterkeuze begint vanzelf op de eerste pagina. *@
+<form asp-action="Index" method="get" class="training-filters mb-4">
+    <div>
+        <label for="AudienceFilter" class="form-label">Doelgroep</label>
+        <select name="audience" id="AudienceFilter" class="form-select">
+            @if (invalidAudience is not null) { <option value="@invalidAudience" selected>Ongeldig filter (@invalidAudience)</option> }
+            <option value="all" selected="@(invalidAudience is null && audienceValue == "all")">Alle doelgroepen</option>
+            <option value="unassigned" selected="@(invalidAudience is null && audienceValue == "unassigned")">Nog toe te wijzen</option>
+            <option value="allDepartments" selected="@(invalidAudience is null && audienceValue == "allDepartments")">Alle afdelingen</option>
+            <option value="selectedDepartments" selected="@(invalidAudience is null && audienceValue == "selectedDepartments")">Geselecteerde afdelingen</option>
+        </select>
+    </div>
+    <div>
+        <label for="CategoryFilter" class="form-label">Categorie</label>
+        <select name="categoryId" id="CategoryFilter" class="form-select">
+            <option value="">Alle categorieën</option>
+            @if (!string.IsNullOrEmpty(categoryValue) && !Model.References.Categories.Any(category => category.Id.ToString() == categoryValue))
+            {
+                <option value="@categoryValue" selected>Niet beschikbare categorie (@categoryValue)</option>
+            }
+            @foreach (var category in Model.References.Categories)
+            {
+                <option value="@category.Id" selected="@(categoryValue == category.Id.ToString())">@category.Name</option>
+            }
+        </select>
+    </div>
+    <button type="submit" class="btn btn-outline-primary">Filters toepassen</button>
+</form>
+@if (Model.Page.Rows.Count == 0)
+{
+    @* Een lege of te hoge pagina krijgt uitleg; er worden geen voorbeeldopleidingen verzonnen. *@
+    <p role="status">@(Model.Page.TotalCount == 0 ? "Er zijn geen opleidingen die aan deze filters voldoen." : "Deze pagina bevat geen opleidingen. Ga terug naar de eerste pagina van dit overzicht.")</p>
+    @if (Model.Page.TotalCount > 0)
+    {
+        <a asp-action="Index" asp-route-audience="@audienceValue" asp-route-categoryId="@Model.Filter.CategoryId" asp-route-page="1">Eerste pagina</a>
+    }
+}
+else
+{
+    @* Alleen deze regio scrollt op een smal scherm; tabindex maakt horizontaal scrollen met het toetsenbord bereikbaar. *@
+    <div class="table-responsive training-table-region" tabindex="0" role="region" aria-label="Opleidingenoverzicht, horizontaal te scrollen">
+        <table class="table table-striped align-middle">
+            <caption>@Model.Page.TotalCount opleidingen binnen de gekozen filters. </caption>
+            <thead><tr><th scope="col">Opleiding</th>@if (Model.IsAdministrator) { <th scope="col">Eigenaar</th> }<th scope="col">Doelgroep</th><th scope="col">Actie</th></tr></thead>
+            <tbody>
+                @foreach (var training in Model.Page.Rows)
+                {
+                    <tr>
+                        <th scope="row">@training.Title<span class="d-block fw-normal">@training.CategoryName</span></th>
+                        @if (Model.IsAdministrator) { <td>@training.OwnerDisplayName</td> }
+                        <td>@AudienceLabel(training.AudienceScope)</td>
+                        <td><a asp-action="Details" asp-route-id="@training.Id" aria-label="@($"Details van {training.Title}")">Details</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    @* De pagina-links nemen alle filters mee; de server blijft eigenaar van de vaste paginaomvang. *@
+    <nav aria-label="Pagina's van het opleidingenoverzicht" class="training-actions mt-3">
+        @if (Model.Page.Page > 1)
+        {
+            <a asp-action="Index" asp-route-audience="@audienceValue" asp-route-categoryId="@Model.Filter.CategoryId" asp-route-page="@(Model.Page.Page - 1)">Vorige pagina</a>
+        }
+        <span aria-current="page">Pagina @Model.Page.Page van @Model.Page.TotalPages</span>
+        @if (Model.Page.Page < Model.Page.TotalPages)
+        {
+            <a asp-action="Index" asp-route-audience="@audienceValue" asp-route-categoryId="@Model.Filter.CategoryId" asp-route-page="@(Model.Page.Page + 1)">Volgende pagina</a>
+        }
+    </nav>
+}
+@section Scripts { <script src="~/js/registration-form.js" asp-append-version="true"></script> }

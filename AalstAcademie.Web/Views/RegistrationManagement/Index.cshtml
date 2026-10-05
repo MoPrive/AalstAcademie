@@ -1,0 +1,41 @@
+@using AalstAcademie.Web.Models.Domain
+@model AalstAcademie.Web.Models.Enrolment.RegistrationManagementReadModel
+@{ ViewData["Title"] = "Inschrijvingen beheren"; }
+<h1>Inschrijvingen beheren</h1>
+<div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+<form method="get" class="mb-4">
+    <label for="trainingId">Opleiding-ID</label><input id="trainingId" name="trainingId" value="@Model.TrainingId" inputmode="numeric" class="form-control" />
+    <label for="momentId">Moment-ID</label><input id="momentId" name="momentId" value="@Model.MomentId" inputmode="numeric" class="form-control" />
+    <label for="status">Registratiestatus</label>
+    <select id="status" name="status" class="form-select"><option value="">Alle statussen</option><option value="Requested" selected="@(Model.FilterStatus == RegistrationStatus.Requested)">Aangevraagd</option><option value="Confirmed" selected="@(Model.FilterStatus == RegistrationStatus.Confirmed)">Bevestigd</option><option value="Refused" selected="@(Model.FilterStatus == RegistrationStatus.Refused)">Geweigerd</option><option value="Cancelled" selected="@(Model.FilterStatus == RegistrationStatus.Cancelled)">Geannuleerd</option></select>
+    <button type="submit" class="btn btn-primary mt-2">Filter toepassen</button><a href="/RegistrationManagement" class="ms-2">Filters wissen</a>
+</form>
+<h2>Aanvragen en historie</h2>
+@if (Model.Registrations.Count == 0) { <p>Geen inschrijvingen binnen deze selectie.</p> }
+@foreach (var row in Model.Registrations)
+{
+    <article class="card mb-3" data-registration-id="@row.Id"><div class="card-body">
+        <h3 class="h5">@row.Title — @row.ParticipantName</h3><p>@row.Date.ToString("dd/MM/yyyy") @row.StartTime.ToString("HH:mm") — @row.Status</p>
+        <p>@row.Email — @row.Phone — Afdeling: @row.Department — Leidinggevende: @(row.Manager ?? "Niet gekoppeld")</p>
+        <p class="account-reason">Motivatie: @row.Motivation</p><p class="account-reason">Reden: @row.DecisionReason</p>
+        <a asp-action="Details" asp-route-id="@row.Id">Aanvraag bekijken en beoordelen</a>
+    </div></article>
+}
+<nav aria-label="Aanvraagpagina's">
+    @if (Model.RegistrationPage > 1) { <a asp-route-trainingId="@Model.TrainingId" asp-route-momentId="@Model.MomentId" asp-route-status="@Model.FilterStatus" asp-route-registrationPage="@(Model.RegistrationPage - 1)" asp-route-waitlistPage="@Model.WaitlistPage">Vorige aanvragen</a> }
+    <span>Pagina @Model.RegistrationPage van @Model.RegistrationPages</span>
+    @if (Model.RegistrationPage < Model.RegistrationPages) { <a asp-route-trainingId="@Model.TrainingId" asp-route-momentId="@Model.MomentId" asp-route-status="@Model.FilterStatus" asp-route-registrationPage="@(Model.RegistrationPage + 1)" asp-route-waitlistPage="@Model.WaitlistPage">Volgende aanvragen</a> }
+</nav>
+<h2 class="mt-4">Actieve opleidingswachtlijst</h2><p>Deze belangstelling heeft geen beoordelingsstatus. Een geschikte aansluiting wordt automatisch verwerkt wanneer een passende plaats vrijkomt.</p>
+@foreach (var row in Model.Waitlist)
+{
+    <article class="card mb-3" data-waitlist-id="@row.Id"><div class="card-body"><h3 class="h5">@row.Title — @row.ParticipantName</h3>
+    <p>@row.Email — @row.Phone — Afdeling: @row.Department — Leidinggevende: @(row.Manager ?? "Niet gekoppeld")</p>
+    <p>Aangesloten (UTC): @row.JoinedAtUtc.ToString("dd/MM/yyyy HH:mm")</p><p class="account-reason">Motivatie: @row.Motivation</p></div></article>
+}
+<nav aria-label="Wachtlijstpagina's">
+    @if (Model.WaitlistPage > 1) { <a asp-route-trainingId="@Model.TrainingId" asp-route-momentId="@Model.MomentId" asp-route-status="@Model.FilterStatus" asp-route-registrationPage="@Model.RegistrationPage" asp-route-waitlistPage="@(Model.WaitlistPage - 1)">Vorige aansluitingen</a> }
+    <span>Pagina @Model.WaitlistPage van @Model.WaitlistPages</span>
+    @if (Model.WaitlistPage < Model.WaitlistPages) { <a asp-route-trainingId="@Model.TrainingId" asp-route-momentId="@Model.MomentId" asp-route-status="@Model.FilterStatus" asp-route-registrationPage="@Model.RegistrationPage" asp-route-waitlistPage="@(Model.WaitlistPage + 1)">Volgende aansluitingen</a> }
+</nav>
+@section Scripts { <script src="~/js/registration-form.js" asp-append-version="true"></script> }

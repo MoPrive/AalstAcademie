@@ -1,0 +1,18 @@
+@using AalstAcademie.Web.Models.Identity
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+@* Hetzelfde ApplicationUser-type als Program; het eigen statusgebied vervangt packaged Manage. *@
+<ul class="navbar-nav">
+@* De cookie-identiteit bepaalt login/logoutnavigatie; toegang tot inhoud wordt afzonderlijk door policies beslist. *@
+@if (SignInManager.IsSignedIn(User))
+{
+    <li class="nav-item"><a class="nav-link" href="/Account/Status">Mijn account</a></li>
+    @* De standaard Logout-pagina blijft bruikbaar, terwijl de eigen statuspagina packaged Manage vervangt. *@
+    <li class="nav-item"><form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="/Identity/Account/Login" method="post"><button class="nav-link btn btn-link" type="submit">Uitloggen</button></form></li>
+}
+else
+{
+    <li class="nav-item"><a class="nav-link" asp-area="Identity" asp-page="/Account/Register">Account aanvragen</a></li>
+    <li class="nav-item"><a class="nav-link" asp-area="Identity" asp-page="/Account/Login">Aanmelden</a></li>
+}
+</ul>

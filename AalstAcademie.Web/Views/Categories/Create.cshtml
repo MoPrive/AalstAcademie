@@ -1,0 +1,21 @@
+@* Sprint 003: Toont uitsluitend categorie-invoer, veldfouten en foutensamenvatting. De form-taghelper voegt antiforgery toe aan de muterende POST. *@
+@using AalstAcademie.Web.Models.Training
+@model CategoryCreateViewModel
+@{ ViewData["Title"] = "Categorie aanmaken"; }
+<h1>Categorie aanmaken</h1>
+<p><a asp-action="Index">Terug naar de categorieën</a></p>
+@* Naaminput en ModelState blijven samen staan bij een veld-/opslagfout; het bestaande script focust de samenvatting. *@
+<div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+@if (Model.Message is not null) { <p class="alert alert-warning" role="alert">@Model.Message</p> }
+<form asp-action="Create" method="post" class="account-form">
+    <fieldset>
+        <legend>Categorienaam</legend>
+        <label asp-for="Name" class="form-label">Naam (verplicht)</label>
+        <input asp-for="Name" type="text" class="form-control" maxlength="100" required aria-describedby="NameHelp" />
+        <p id="NameHelp" class="form-text">Maximaal 100 tekens. Verschillen in hoofdletters of extra spaties maken geen aparte categorie.</p>
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </fieldset>
+    @* De form-taghelper voegt het antiforgerytoken toe; de naam is de enige bindbare businessinput. *@
+    @if (!Model.IsConflict) { <button type="submit" class="btn btn-primary">Categorie opslaan</button> }
+</form>
+@section Scripts { <script src="~/js/registration-form.js" asp-append-version="true"></script> }

@@ -1,0 +1,125 @@
+@* Sprint 003: Vraagt alleen opleidingsmetadata en voorwaarden, met admin-ownerkeuze waar toegestaan. Iedere nieuwe opleiding start Unassigned; planning volgt in een afzonderlijk moment. *@
+@using AalstAcademie.Web.Models.Training
+@model TrainingCreateViewModel
+@{
+    ViewData["Title"] = "Opleiding aanmaken";
+    var categoryValue = ViewData.ModelState.TryGetValue("CategoryId", out var categoryState) ? categoryState.AttemptedValue : Model.CategoryId;
+    var ownerValue = ViewData.ModelState.TryGetValue("OwnerUserId", out var ownerState) ? ownerState.AttemptedValue : Model.OwnerUserId;
+    var motivationInvalid = ViewData.ModelState.TryGetValue("RequiresMotivation", out var motivationInputState) && motivationInputState.Errors.Count > 0;
+    var showFields = Model.Owner is not null || Context.Request.Method == "POST";
+    var showPrice = Model.Owner?.IsExternal == true || (Model.Owner is null && !string.IsNullOrEmpty(Model.ExternalTotalPriceEuros));
+}
+<h1>Opleiding aanmaken</h1>
+<p><a asp-action="Index">Terug naar het opleidingenoverzicht</a></p>
+@* Het bestaande script focust uitsluitend de foutensamenvatting; dit formulier heeft geen registratie-typegroepen. *@
+<div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+@if (Model.Message is not null) { <p class="alert alert-warning" role="alert">@Model.Message</p> }
+@if (Model.IsAdministrator)
+{
+    @* Een aparte gewone GET kiest de eigenaar en daarmee het prijsdeel, ook wanneer JavaScript uitstaat. *@
+    <form asp-action="Create" method="get" class="account-form mb-4">
+        <fieldset>
+            <legend>Eigenaar kiezen</legend>
+            <label for="OwnerSelection" class="form-label">Lesgever (verplicht)</label>
+            <select name="ownerUserId" id="OwnerSelection" class="form-select" required aria-describedby="OwnerHelp">
+                <option value="">Kies een lesgever</option>
+                @if (!string.IsNullOrEmpty(ownerValue) && !Model.Owners.Any(owner => owner.UserId == ownerValue))
+                {
+                    <option value="@ownerValue" selected>Deze eigenaar is niet beschikbaar (@ownerValue)</option>
+                }
+                @foreach (var owner in Model.Owners)
+                {
+                    <option value="@owner.UserId" selected="@(owner.UserId == ownerValue)">@owner.DisplayName (@(owner.IsExternal ? "Extern" : "Intern"))</option>
+                }
+            </select>
+            <p id="OwnerHelp" class="form-text">Kies een goedgekeurde lesgever. Deze persoon of organisatie blijft de vaste eigenaar van de opleiding.</p>
+            <button type="submit" class="btn btn-outline-primary">Formulier voor deze eigenaar openen</button>
+        </fieldset>
+    </form>
+}
+@if (Model.Owner is not null)
+{
+    <p><strong>Vaste eigenaar:</strong> @Model.Owner.DisplayName (@(Model.Owner.IsExternal ? "Externe lesgever" : "Interne lesgever"))</p>
+}
+else
+{
+    <p class="alert alert-info">Kies eerst een beschikbare eigenaar om het juiste formulier te openen. Een eerder ingevuld formulier wordt pas opgeslagen nadat de eigenaar opnieuw geldig is gekozen.</p>
+}
+@if (Model.References.Categories.Count == 0)
+{
+    <div class="alert alert-info" role="status">
+        <p class="mb-0">Er zijn nog geen categorieën. Een beheerder moet eerst een categorie aanmaken.</p>
+        @if (Model.IsAdministrator) { <a asp-controller="Categories" asp-action="Create">Eerste categorie aanmaken</a> }
+    </div>
+}
+@if (showFields && (Model.References.Categories.Count > 0 || Context.Request.Method == "POST"))
+{
+    @* Alleen de beheerder post zijn expliciete eigenaarkeuze. Bij een lesgever bepaalt de service de eigenaar zelf. *@
+    <form asp-action="Create" method="post" class="account-form training-form">
+        @if (Model.IsAdministrator) { <input asp-for="OwnerUserId" type="hidden" /> }
+        <fieldset>
+            <legend>Opleidingsgegevens</legend>
+            <div class="mb-3">
+                <label asp-for="Title" class="form-label">Titel (verplicht)</label>
+                <input asp-for="Title" type="text" class="form-control" maxlength="200" required />
+                <span asp-validation-for="Title" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="CategoryId" class="form-label">Categorie (verplicht)</label>
+                <select asp-for="CategoryId" class="form-select" required>
+                    <option value="">Kies een categorie</option>
+                    @* Een ongeldige POST-waarde blijft herkenbaar in plaats van stil naar een geldige categorie te verspringen. *@
+                    @if (!string.IsNullOrEmpty(categoryValue) && !Model.References.Categories.Any(category => category.Id.ToString() == categoryValue))
+                    {
+                        <option value="@categoryValue">Niet beschikbare categorie (@categoryValue)</option>
+                    }
+                    @foreach (var category in Model.References.Categories) { <option value="@category.Id">@category.Name</option> }
+                </select>
+                <span asp-validation-for="CategoryId" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label">Beschrijving (optioneel)</label>
+                <textarea asp-for="Description" class="form-control" rows="5" maxlength="4000" aria-describedby="DescriptionHelp"></textarea>
+                <p id="DescriptionHelp" class="form-text">Gewone tekst, maximaal 4000 tekens. Regelafbrekingen blijven zichtbaar.</p>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+            @if (showPrice)
+            {
+                <div class="mb-3">
+                    <label asp-for="ExternalTotalPriceEuros" class="form-label">Totale externe prijs in EUR (verplicht bij een externe eigenaar)</label>
+                    <input asp-for="ExternalTotalPriceEuros" type="text" inputmode="decimal" class="form-control" required aria-describedby="PriceHelp" />
+                    <p id="PriceHelp" class="form-text">Prijs voor de hele opleiding, met maximaal 2 decimalen. Gebruik een komma of punt zonder duizendseparator; 0 betekent gratis.</p>
+                    <span asp-validation-for="ExternalTotalPriceEuros" class="text-danger"></span>
+                </div>
+            }
+            else if (Model.Owner is not null)
+            {
+                <p>Bij een interne lesgever wordt geen externe prijs opgeslagen.</p>
+                @if (Context.Request.Method == "POST" && !string.IsNullOrEmpty(Model.ExternalTotalPriceEuros))
+                {
+                    <p>Ingestuurde prijs: <span>@Model.ExternalTotalPriceEuros</span></p>
+                    <span asp-validation-for="ExternalTotalPriceEuros" class="text-danger"></span>
+                }
+            }
+            <div class="form-check mb-3">
+                @* Foutieve RawValue blijft intact; een gewone checkbox voorkomt een nieuwe boolconversie tijdens foutweergave. *@
+                @if (motivationInvalid)
+                {
+                    <input name="RequiresMotivation" id="RequiresMotivation" type="checkbox" value="true" checked="@Model.RequiresMotivation" class="form-check-input" aria-invalid="true" aria-describedby="MotivationSubmitted" />
+                    <input name="RequiresMotivation" type="hidden" value="false" />
+                    <p id="MotivationSubmitted" class="text-danger">Ingestuurde motivatiekeuze: @motivationInputState?.AttemptedValue</p>
+                }
+                else { <input asp-for="RequiresMotivation" class="form-check-input" /> }
+                <label asp-for="RequiresMotivation" class="form-check-label">Motivatie vereist bij een latere inschrijving</label>
+                <span asp-validation-for="RequiresMotivation" class="text-danger"></span>
+            </div>
+        </fieldset>
+        @* Doelgroep krijgt uitsluitend via de afzonderlijke beheerderactie een toewijzing. *@
+        <p>De opleiding krijgt na aanmaak de status 'Nog toe te wijzen'. Alleen een beheerder bepaalt de doelgroepafdelingen.</p>
+        @if (!Model.IsConflict && Model.Owner is not null && Model.References.Categories.Count > 0)
+        {
+            <button type="submit" class="btn btn-primary">Opleiding opslaan</button>
+        }
+    </form>
+}
+@section Scripts { <script src="~/js/registration-form.js" asp-append-version="true"></script> }

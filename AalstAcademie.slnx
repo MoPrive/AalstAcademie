@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="AalstAcademie.Tests/AalstAcademie.Tests.csproj" />
+  <Project Path="AalstAcademie.Web/AalstAcademie.Web.csproj" />
+</Solution>

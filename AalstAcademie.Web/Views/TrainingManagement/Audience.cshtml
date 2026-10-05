@@ -1,0 +1,62 @@
+@* Sprint 003: Laat de beheerder kiezen tussen alle of geselecteerde afdelingen en post de oorspronkelijke versie. Deze oude sprint-003-view was al passend voor revisie 02. *@
+@using AalstAcademie.Web.Models.Training
+@model TrainingAudienceViewModel
+@{
+    ViewData["Title"] = "Doelgroep toewijzen";
+    var audienceValue = ViewData.ModelState.TryGetValue("AudienceScope", out var audienceState) ? audienceState.AttemptedValue : Model.AudienceScope;
+    var normalizedAudience = audienceValue?.Trim().ToLowerInvariant();
+    var allValue = normalizedAudience is "1" or "alldepartments" ? audienceValue : "AllDepartments";
+    var selectedValue = normalizedAudience is "2" or "selecteddepartments" ? audienceValue : "SelectedDepartments";
+}
+<h1>Doelgroep toewijzen</h1>
+<p><strong>Opleiding:</strong> @Model.Details.Training.Title</p>
+<p><a asp-action="Details" asp-route-id="@Model.Id">Terug naar de details</a></p>
+<div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+@if (Model.Message is not null) { <p class="alert alert-warning" role="alert">@Model.Message</p> }
+@if (Model.IsConflict)
+{
+    <p>Je doelgroepkeuze blijft hieronder zichtbaar. Lees eerst de huidige gegevens opnieuw voordat je een nieuwe wijziging opslaat.</p>
+    <p><a class="btn btn-outline-primary" asp-action="Audience" asp-route-id="@Model.Id">Huidige gegevens opnieuw lezen</a></p>
+}
+@* Alleen deze aparte beheerderactie bindt de volledige doelgroep. Er is geen optie om een bestaande opleiding terug te zetten naar Unassigned. *@
+<form asp-action="Audience" asp-route-id="@Model.Id" method="post" class="account-form training-form">
+    <input asp-for="ExpectedVersion" type="hidden" />
+    <fieldset disabled="@(!Model.Details.CanAssignAudience)">
+        <legend>Doelgroep</legend>
+        <p id="AudienceHelp">Kies alle afdelingen of geselecteerde afdelingen. Bij alle afdelingen laat je de afdelingsvakjes leeg. Bij geselecteerde afdelingen kies je minstens één afdeling.</p>
+        @if (normalizedAudience is "unassigned" or "0")
+        {
+            <p>De gelezen of ingestuurde keuze is 'Nog toe te wijzen'. Kies alle afdelingen of geselecteerde afdelingen om een doelgroep op te slaan.</p>
+        }
+        else if (!string.IsNullOrEmpty(audienceValue) && normalizedAudience is not ("alldepartments" or "selecteddepartments" or "1" or "2"))
+        {
+            <div class="form-check"><input name="AudienceScope" type="radio" value="@audienceValue" id="AudienceUnknown" checked class="form-check-input" /><label for="AudienceUnknown" class="form-check-label">Niet toegelaten keuze (@audienceValue); kies hieronder een geldige doelgroep</label></div>
+        }
+        <div class="form-check"><input name="AudienceScope" type="radio" value="@allValue" id="AudienceAll" checked="@(normalizedAudience is "1" or "alldepartments")" class="form-check-input" aria-describedby="AudienceHelp" /><label for="AudienceAll" class="form-check-label">Alle afdelingen, ook toekomstige afdelingen</label></div>
+        <div class="form-check"><input name="AudienceScope" type="radio" value="@selectedValue" id="AudienceSelected" checked="@(normalizedAudience is "2" or "selecteddepartments")" class="form-check-input" aria-describedby="AudienceHelp" /><label for="AudienceSelected" class="form-check-label">Geselecteerde afdelingen</label></div>
+        <span asp-validation-for="AudienceScope" class="text-danger"></span>
+        @* De checkboxset is altijd bruikbaar zonder JavaScript; alle huidige vakjes aanvinken blijft een geselecteerde doelgroep. *@
+        <fieldset class="mt-3">
+            <legend>Afdelingen voor geselecteerde doelgroep</legend>
+            @foreach (var department in Model.References.Departments)
+            {
+                var departmentId = department.Id.ToString();
+                <div class="form-check"><input name="DepartmentIds" type="checkbox" value="@departmentId" id="@($"Department_{department.Id}")" checked="@Model.DepartmentIds.Contains(departmentId)" class="form-check-input" /><label for="@($"Department_{department.Id}")" class="form-check-label">@department.Name</label></div>
+            }
+            @for (var i = 0; i < Model.DepartmentIds.Length; i++)
+            {
+                var departmentId = Model.DepartmentIds[i];
+                if (!Model.References.Departments.Any(department => department.Id.ToString() == departmentId))
+                {
+                    <div class="form-check"><input name="DepartmentIds" type="checkbox" value="@departmentId" id="@($"UnknownDepartment_{i}")" checked class="form-check-input" /><label for="@($"UnknownDepartment_{i}")" class="form-check-label">Niet beschikbare afdeling (@departmentId); vink uit om te corrigeren</label></div>
+                }
+            }
+            <span asp-validation-for="DepartmentIds" class="text-danger"></span>
+        </fieldset>
+    </fieldset>
+    @if (!Model.IsConflict && Model.Details.CanAssignAudience)
+    {
+        <button type="submit" class="btn btn-primary">Doelgroep opslaan</button>
+    }
+</form>
+@section Scripts { <script src="~/js/registration-form.js" asp-append-version="true"></script> }

@@ -1,0 +1,70 @@
+@* Sprint 003: Bepaalt opleidings- en zaalnavigatie vanuit actuele database/policygegevens. De routes blijven zelfstandig beveiligd wanneer iemand rechtstreeks een URL opent. *@
+@using AalstAcademie.Web.Security
+@using Microsoft.AspNetCore.Authorization
+@inject CurrentAccountAccessor CurrentAccount
+@inject IAuthorizationService Authorization
+@* De gedeelde navigatie gebruikt actuele goedkeuring én rol, zodat een oude cookieclaim geen beheerlink oplevert. *@
+@{
+    var account = await CurrentAccount.GetAsync();
+    var administrator = account?.IsApproved == true && account.IsAdministrator;
+    // De featurepolicy leest de actuele DB-rol: Approved alleen verleent geen opleidingsbeheer.
+    var trainingManagement = (await Authorization.AuthorizeAsync(User, TrainingPolicies.TrainingManagement)).Succeeded;
+    var participation = (await Authorization.AuthorizeAsync(User, EmployeePolicies.EmployeeParticipation)).Succeeded;
+    var internalAccount = account?.IsApproved == true && account.User.RequestedAccountType is
+        AalstAcademie.Web.Models.Identity.RequestedAccountType.Employee or AalstAcademie.Web.Models.Identity.RequestedAccountType.InternalInstructor;
+}
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Aalst Academie</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @* Zonder JavaScript blijft het mobiele menu open en is de niet-werkende collapseknop verborgen. *@
+    <noscript><style>#main-navigation.collapse { display: block; } .navbar-toggler { display: none; }</style></noscript>
+</head>
+<body>
+    @* De skiplink geeft toetsenbordgebruikers een directe route voorbij de herhaalde hoofdnavigatie. *@
+    <a class="skip-link" href="#main-content">Ga naar inhoud</a>
+    <header>
+        <nav class="navbar navbar-expand-md navbar-light bg-white border-bottom mb-4" aria-label="Hoofdnavigatie">
+            <div class="container">
+                @* Aanvragers zonder goedkeuring komen via het logo weer in hun beperkte eigen statusgebied. *@
+                <a class="navbar-brand" href="@(account?.IsApproved == false ? "/Account/Status" : "/")">Aalst Academie</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#main-navigation" aria-controls="main-navigation" aria-expanded="false" aria-label="Navigatiemenu openen"><span class="navbar-toggler-icon"></span></button>
+                <div class="collapse navbar-collapse" id="main-navigation">
+                    <ul class="navbar-nav me-auto">
+                        @if (account?.IsApproved == true) { <li class="nav-item"><a class="nav-link" href="/">Start</a></li> }
+                        @if (trainingManagement) { <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="TrainingManagement" asp-action="Index">Opleidingen beheren</a></li> }
+                        @* Actuele policy bepaalt nieuwe deelname; eigen historie blijft na rolverlies beschikbaar. *@
+                        @if (trainingManagement) { <li class="nav-item"><a class="nav-link" href="/RegistrationManagement">Inschrijvingen beheren</a></li> }
+                        @if (participation) { <li class="nav-item"><a class="nav-link" href="/EmployeeCatalogue">Opleidingsaanbod</a></li> }
+                        @if (account?.IsApproved == true) { <li class="nav-item"><a class="nav-link" href="/MyRegistrations">Mijn opleidingen</a></li> }
+                        @if (internalAccount) { <li class="nav-item"><a class="nav-link" href="/AccountManager">Leidinggevende</a></li> }
+                        @if (administrator) { <li class="nav-item"><a class="nav-link" href="/DepartmentResponsibles">Verantwoordelijken</a></li> }
+                        @if (administrator) { <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="Categories" asp-action="Index">Categorieën</a></li> }
+                        @* Alleen actuele beheerders zien zaalbeheer; de route en dienst controleren dezelfde rechten opnieuw. *@
+                        @if (administrator) { <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="Locations" asp-action="Index">Zalen</a></li> }
+                        @if (administrator) { <li class="nav-item">@await Component.InvokeAsync("PendingAccountBadge")</li> }
+                        <li class="nav-item"><a class="nav-link" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a></li>
+                    </ul>
+                    <partial name="_LoginPartial" />
+                </div>
+            </div>
+        </nav>
+    </header>
+    <main id="main-content" class="container pb-4" tabindex="-1">@RenderBody()</main>
+    <footer class="app-footer border-top text-muted"><div class="container py-3">Aalst Academie — fictieve lokale demo</div></footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @* Alleen actuele beheerders ontvangen de live koppeling. Andere rollen krijgen geen snapshotgegevens. *@
+    @if (administrator)
+    {
+        <script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
+        <script src="~/js/account-applications.js" asp-append-version="true"></script>
+    }
+    @* Paginascripts worden pas na de gedeelde libraries geladen; niet iedere pagina hoeft een sectie te leveren. *@
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

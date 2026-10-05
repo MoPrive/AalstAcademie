@@ -1,0 +1,15 @@
+@* Sprint 003: Toont de actuele zaal en historische referentieguard als bevestiging. Alleen de afzonderlijke beveiligde POST kan een ongebruikte zaal verwijderen. *@
+@using AalstAcademie.Web.Models.Training
+@model LocationDeleteViewModel
+@{ ViewData["Title"] = "Zaal verwijderen"; }
+@* GET is alleen bevestiging; iedere momentreferentie blokkeert fysieke verwijdering, ook historisch. *@
+<h1>Zaal verwijderen</h1><p><a asp-action="Index">Terug naar het zaaloverzicht</a></p>
+<p>@Model.Details.Name — @Model.Details.Address — capaciteit @Model.Details.MaximumCapacity</p>
+<div asp-validation-summary="All" class="text-danger training-validation-summary" role="alert" tabindex="-1" autofocus></div>
+@if (Model.Details.CanDelete) {
+<p>Deze zaal heeft geen momentreferenties. Bevestig de verwijdering.</p>
+<form asp-action="Delete" asp-route-id="@Model.Details.Id" method="post" class="location-form">
+<input asp-for="ExpectedVersion" type="hidden" /><button class="btn btn-danger" type="submit">Zaal verwijderen bevestigen</button></form> }
+else { <p class="alert alert-info">Deze zaal wordt door een opleidingsmoment gebruikt en kan niet worden verwijderd.</p><input type="hidden" name="OriginalExpectedVersion" value="@Model.ExpectedVersion" /> }
+<p><a asp-action="Delete" asp-route-id="@Model.Details.Id">Zaal opnieuw lezen</a></p>
+

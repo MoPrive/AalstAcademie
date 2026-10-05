@@ -1,0 +1,46 @@
+@using AalstAcademie.Web.Models.Domain
+@model AalstAcademie.Web.Models.Enrolment.OwnRegistrationsReadModel
+@{ ViewData["Title"] = "Mijn opleidingen"; }
+<h1>Mijn opleidingen</h1>
+@if (TempData["EnrolmentMessage"] is string message) { <p class="alert alert-success" role="status">@message</p> }
+<div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+<h2>Aanvragen en historie</h2>
+@if (Model.Registrations.Count == 0) { <p>Je hebt nog geen aanvragen.</p> }
+@foreach (var row in Model.Registrations)
+{
+    <article class="card mb-3" data-registration-id="@row.Id"><div class="card-body">
+        <h3 class="h5">@row.Title</h3>
+        <p>@row.Category — @row.Date.ToString("dd/MM/yyyy") @row.StartTime.ToString("HH:mm")–@row.EndTime.ToString("HH:mm")</p>
+        <p>@row.InstructorName — @row.Location — @row.Address</p>
+        <p>Totale externe prijs: @(row.ExternalTotalPriceEuros is decimal price ? $"{price:0.00} EUR" : "Niet van toepassing")</p>
+        <p>Status: @(row.Status switch { RegistrationStatus.Requested => "Aangevraagd", RegistrationStatus.Confirmed => "Bevestigd", RegistrationStatus.Refused => "Geweigerd", RegistrationStatus.Cancelled => "Geannuleerd", _ => row.Status.ToString() })</p>
+        <p>Aanvraagdatum (UTC): @row.RequestedAtUtc.ToString("dd/MM/yyyy HH:mm")</p>
+        <p class="account-reason">Motivatie: @row.Motivation</p>
+        @if (row.CanCancel) { <p><a href="/MyRegistrations/Cancel/@row.Id">Mijn aanvraag annuleren</a></p> }
+        @if (row.DecisionReason is not null) { <p class="account-reason">Reden: @row.DecisionReason</p> }
+    </div></article>
+}
+<nav aria-label="Aanvraagpagina's" class="training-actions">
+    @if (Model.RegistrationPage > 1) { <a asp-action="Index" asp-route-registrationPage="@(Model.RegistrationPage - 1)" asp-route-waitlistPage="@Model.WaitlistPage">Vorige aanvragen</a> }
+    <span>Pagina @Model.RegistrationPage van @Model.RegistrationPages</span>
+    @if (Model.RegistrationPage < Model.RegistrationPages) { <a asp-action="Index" asp-route-registrationPage="@(Model.RegistrationPage + 1)" asp-route-waitlistPage="@Model.WaitlistPage">Volgende aanvragen</a> }
+</nav>
+<h2 class="mt-4">Wachtlijst en historie</h2>
+@if (Model.Waitlist.Count == 0) { <p>Je hebt nog geen wachtlijstaansluitingen.</p> }
+@foreach (var row in Model.Waitlist)
+{
+    <article class="card mb-3" data-waitlist-id="@row.Id"><div class="card-body">
+        <h3 class="h5">@row.Title</h3><p>@row.Category — @row.InstructorName</p>
+        <p>Totale externe prijs: @(row.ExternalTotalPriceEuros is decimal price ? $"{price:0.00} EUR" : "Niet van toepassing")</p>
+        <p>Aangesloten (UTC): @row.JoinedAtUtc.ToString("dd/MM/yyyy HH:mm")</p>
+        <p class="account-reason">Motivatie: @row.Motivation</p>
+        @if (row.ClosedAtUtc is null) { <p>Actieve wachtlijstaansluiting</p><a href="/MyRegistrations/Withdraw/@row.Id">Deze aansluiting intrekken</a> }
+        else { <p>Gesloten (UTC): @row.ClosedAtUtc.Value.ToString("dd/MM/yyyy HH:mm")</p> }
+    </div></article>
+}
+<nav aria-label="Wachtlijstpagina's" class="training-actions">
+    @if (Model.WaitlistPage > 1) { <a asp-action="Index" asp-route-registrationPage="@Model.RegistrationPage" asp-route-waitlistPage="@(Model.WaitlistPage - 1)">Vorige aansluitingen</a> }
+    <span>Pagina @Model.WaitlistPage van @Model.WaitlistPages</span>
+    @if (Model.WaitlistPage < Model.WaitlistPages) { <a asp-action="Index" asp-route-registrationPage="@Model.RegistrationPage" asp-route-waitlistPage="@(Model.WaitlistPage + 1)">Volgende aansluitingen</a> }
+</nav>
+@section Scripts { <script src="~/js/registration-form.js" asp-append-version="true"></script> }

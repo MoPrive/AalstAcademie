@@ -1,0 +1,32 @@
+@* Sprint 003: Toont de huidige categorieën en links voor create/rename. Er is geen categorie-deleteactie. *@
+@using AalstAcademie.Web.Models.Training
+@model CategoryIndexViewModel
+@{ ViewData["Title"] = "Categorieën beheren"; }
+@* Categoriebeheer heeft alleen aanmaak en hernoemen: bestaande opleidingskoppelingen blijven op dezelfde sleutel staan. *@
+<h1>Categorieën beheren</h1>
+<p>Maak categorieën aan en wijzig hun naam. Lesgevers kiezen deze categorieën bij hun opleidingen.</p>
+<div class="training-actions mb-4">
+    <a class="btn btn-primary" asp-action="Create">Categorie aanmaken</a>
+    <a asp-controller="TrainingManagement" asp-action="Index">Naar opleidingen</a>
+</div>
+@if (TempData["CategoryMessage"] is string message) { <div class="alert alert-success" role="status">@message</div> }
+@if (Model.Categories.Count == 0)
+{
+    <p class="alert alert-info" role="status">Er zijn nog geen categorieën. Maak de eerste categorie aan zodat lesgevers opleidingen kunnen opslaan.</p>
+}
+else
+{
+    @* De focusbare scrollregio houdt de tabel met echte kopcellen toegankelijk op een smal scherm. *@
+    <div class="table-responsive training-table-region" tabindex="0" role="region" aria-label="Categorieënoverzicht, horizontaal te scrollen">
+        <table class="table table-striped align-middle">
+            <caption>Beschikbare opleidingscategorieën</caption>
+            <thead><tr><th scope="col">Naam</th><th scope="col">Actie</th></tr></thead>
+            <tbody>
+                @foreach (var category in Model.Categories)
+                {
+                    <tr><th scope="row">@category.Name</th><td><a asp-action="Edit" asp-route-id="@category.Id" aria-label="@($"Categorie {category.Name} hernoemen")">Hernoemen</a></td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

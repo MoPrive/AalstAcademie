@@ -1,0 +1,25 @@
+@model AalstAcademie.Web.Models.Accounts.DepartmentResponsiblesViewModel
+@{ ViewData["Title"] = "Afdelingsverantwoordelijken"; }
+<h1>Afdelingsverantwoordelijken</h1>
+@if (TempData["EnrolmentMessage"] is string message) { <p class="alert alert-success" role="status">@message</p> }
+<div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+@foreach (var department in Model.Departments)
+{
+    var input = Model.FailedDepartmentId == department.Id ? Model.FailedInput! : department.Input;
+    var chosen = input.ResponsibleUserId ?? "";
+    @* Alleen de foutieve rij behoudt haar POST-waarden; de andere afdelingen ontvangen hun eigen actuele FK. *@
+    <section class="mb-4"><h2 class="h4">@department.Name</h2><p>Huidige verantwoordelijke: @(department.ResponsibleName ?? "Geen")</p>
+    <form method="post" action="/DepartmentResponsibles/Assign/@department.Id" class="account-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="ExpectedResponsibleUserId" value="@input.ExpectedResponsibleUserId" />
+        <label for="responsible-@department.Id" class="form-label">Verantwoordelijke voor @department.Name</label>
+        <select name="ResponsibleUserId" id="responsible-@department.Id" class="form-select">
+            @if (!Model.Candidates.Any(x => (x.UserId ?? "") == chosen)) { <option value="@chosen" selected>Oorspronkelijke keuze niet beschikbaar — lees opnieuw</option> }
+            @foreach (var c in Model.Candidates) { <option value="@c.UserId" selected="@((c.UserId ?? "") == chosen)">@c.DisplayName</option> }
+        </select>
+        @if (!(Model.FailedDepartmentId == department.Id && Context.Response.StatusCode == 409))
+        { <button class="btn btn-primary mt-3" type="submit">Verantwoordelijke opslaan</button> }
+    </form></section>
+}
+<p><a href="/DepartmentResponsibles">Overzicht bewust opnieuw lezen</a></p>
+@section Scripts { <script src="~/js/registration-form.js" asp-append-version="true"></script> }

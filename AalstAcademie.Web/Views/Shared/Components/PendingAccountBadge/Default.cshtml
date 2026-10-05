@@ -1,0 +1,9 @@
+@model int
+@* Alleen bevoegde beheerders krijgen deze teller en de bijbehorende actuele snapshot. *@
+<a class="nav-link text-dark" href="/Admin/AccountApplications">
+    @* Het script actualiseert alleen de tellertekst; aria-live kondigt een gewijzigd aantal rustig aan. *@
+    Accountaanvragen <span class="badge text-bg-primary" data-account-pending-count aria-live="polite" aria-atomic="true">@Model</span>
+</a>
+@* Ook op detailpagina's moet herstel zonder herladen van open formulierinvoer mogelijk zijn. *@
+<span class="small text-muted d-block px-3" data-account-applications-status role="status" aria-live="polite">Gegevens geladen.</span>
+<button type="button" class="btn btn-link btn-sm px-3 py-0" data-account-applications-refresh>Ververs aanvragen</button>

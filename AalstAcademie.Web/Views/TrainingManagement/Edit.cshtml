@@ -1,0 +1,107 @@
+@* Sprint 003: Toont metadata en alleen nog wijzigbare voorwaarden. Bij historie worden prijs/motivatie leesbaar weergegeven zonder hidden defaults die bestaande waarden zouden wissen. *@
+@using AalstAcademie.Web.Models.Training
+@model TrainingEditViewModel
+@{
+    ViewData["Title"] = "Opleiding wijzigen";
+    var motivationInvalid = ViewData.ModelState.TryGetValue("RequiresMotivation", out var motivationInputState) && motivationInputState.Errors.Count > 0;
+    var categoryValue = ViewData.ModelState.TryGetValue("CategoryId", out var categoryState) ? categoryState.AttemptedValue : Model.CategoryId;
+}
+<h1>Opleiding wijzigen</h1>
+<p><a asp-action="Details" asp-route-id="@Model.Id">Terug naar de details</a></p>
+@* Samenvatting en veldfouten gebruiken dezelfde ModelState, zodat raw invoer ook na een 400 of 409 blijft staan. *@
+<div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+@if (Model.Message is not null) { <p class="alert alert-warning" role="alert">@Model.Message</p> }
+@if (Model.IsConflict)
+{
+    @* Herlezen is een bewuste GET: de view vervangt het oorspronkelijke versietoken nooit automatisch. *@
+    <p>Je invoer blijft hieronder zichtbaar. Lees eerst de huidige gegevens opnieuw voordat je een nieuwe wijziging opslaat.</p>
+    <p><a class="btn btn-outline-primary" asp-action="Edit" asp-route-id="@Model.Id">Huidige gegevens opnieuw lezen</a></p>
+}
+<p><strong>Vaste eigenaar:</strong> @Model.Details.Training.OwnerDisplayName (@(Model.Details.Training.IsExternalOwner ? "Externe lesgever" : "Interne lesgever"))</p>
+@* Het wijzigingsformulier heeft geen eigenaar- of doelgroepinputs: gewone edits behouden die gegevens voor beide actoren. *@
+<form asp-action="Edit" asp-route-id="@Model.Id" method="post" class="account-form training-form">
+    <input asp-for="ExpectedVersion" type="hidden" />
+    <fieldset disabled="@(!Model.Details.CanEdit)">
+        <legend>Opleidingsgegevens</legend>
+        <div class="mb-3">
+            <label asp-for="Title" class="form-label">Titel (verplicht)</label>
+            <input asp-for="Title" type="text" class="form-control" maxlength="200" required />
+            <span asp-validation-for="Title" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="CategoryId" class="form-label">Categorie (verplicht)</label>
+            <select asp-for="CategoryId" class="form-select" required>
+                <option value="">Kies een categorie</option>
+                @if (!string.IsNullOrEmpty(categoryValue) && !Model.References.Categories.Any(category => category.Id.ToString() == categoryValue))
+                {
+                    <option value="@categoryValue">Niet beschikbare categorie (@categoryValue)</option>
+                }
+                @foreach (var category in Model.References.Categories) { <option value="@category.Id">@category.Name</option> }
+            </select>
+            <span asp-validation-for="CategoryId" class="text-danger"></span>
+        </div>
+        <div class="mb-3">
+            <label asp-for="Description" class="form-label">Beschrijving (optioneel)</label>
+            <textarea asp-for="Description" class="form-control" rows="5" maxlength="4000" aria-describedby="DescriptionHelp"></textarea>
+            <p id="DescriptionHelp" class="form-text">Gewone tekst, maximaal 4000 tekens. Regelafbrekingen blijven zichtbaar.</p>
+            <span asp-validation-for="Description" class="text-danger"></span>
+        </div>
+        @* Geen verborgen defaults: bij historie worden voorwaarden alleen gelezen en nooit meegestuurd. *@
+        @if (!Model.Details.CanChangeConditions)
+        {
+            <p class="alert alert-info">Er is deelname- of wachtlijsthistorie. De prijs en motivatieplicht blijven behouden.</p>
+            <dl>
+                <dt>Totale externe prijs</dt><dd>@(Model.Details.Training.IsExternalOwner ? $"{Model.Details.Training.ExternalTotalPriceEuros:0.00} EUR" : "Niet van toepassing bij een interne lesgever")</dd>
+                <dt>Motivatie vereist</dt><dd>@(Model.Details.Training.RequiresMotivation ? "Ja" : "Nee")</dd>
+            </dl>
+            @* Bij een afgewezen wijziging blijft de ingestuurde tekst zichtbaar, zonder een nieuwe opdracht te posten. *@
+            @if (Context.Request.Method == "POST" && ViewData.ModelState.ContainsKey("ExternalTotalPriceEuros"))
+            {
+                <p>Ingestuurde prijs: <span>@Model.ExternalTotalPriceEuros</span></p>
+            }
+            @if (Context.Request.Method == "POST" && ViewData.ModelState.TryGetValue("RequiresMotivation", out var motivationState))
+            {
+                <p>Ingestuurde motivatiekeuze: <span>@motivationState.AttemptedValue</span></p>
+            }
+        }
+        else
+        {
+            @if (Model.Details.Training.IsExternalOwner)
+            {
+                <div class="mb-3">
+                    <label asp-for="ExternalTotalPriceEuros" class="form-label">Totale externe prijs in EUR (verplicht)</label>
+                    <input asp-for="ExternalTotalPriceEuros" type="text" inputmode="decimal" class="form-control" required aria-describedby="PriceHelp" />
+                    <p id="PriceHelp" class="form-text">Prijs voor de hele opleiding, met maximaal 2 decimalen. Gebruik een komma of punt zonder duizendseparator; 0 betekent gratis.</p>
+                    <span asp-validation-for="ExternalTotalPriceEuros" class="text-danger"></span>
+                </div>
+            }
+            else
+            {
+                <p>Bij een interne lesgever wordt geen externe prijs opgeslagen.</p>
+                @if (Context.Request.Method == "POST" && !string.IsNullOrEmpty(Model.ExternalTotalPriceEuros))
+                {
+                    <p>Ingestuurde prijs: <span>@Model.ExternalTotalPriceEuros</span></p>
+                    <span asp-validation-for="ExternalTotalPriceEuros" class="text-danger"></span>
+                }
+            }
+            <div class="form-check mb-3">
+                @* Foutieve RawValue blijft intact; een gewone checkbox voorkomt een nieuwe boolconversie tijdens foutweergave. *@
+                @if (motivationInvalid)
+                {
+                    <input name="RequiresMotivation" id="RequiresMotivation" type="checkbox" value="true" checked="@Model.RequiresMotivation" class="form-check-input" aria-invalid="true" aria-describedby="MotivationSubmitted" />
+                    <input name="RequiresMotivation" type="hidden" value="false" />
+                    <p id="MotivationSubmitted" class="text-danger">Ingestuurde motivatiekeuze: @motivationInputState?.AttemptedValue</p>
+                }
+                else { <input asp-for="RequiresMotivation" class="form-check-input" /> }
+                <label asp-for="RequiresMotivation" class="form-check-label">Motivatie vereist bij een latere inschrijving</label>
+                <span asp-validation-for="RequiresMotivation" class="text-danger"></span>
+            </div>
+        }
+    </fieldset>
+    @* Een conflict heeft geen herpostknop; de oorspronkelijke hidden versie blijft wel behouden en leesbaar in het formulier. *@
+    @if (!Model.IsConflict && Model.Details.CanEdit)
+    {
+        <button type="submit" class="btn btn-primary">Wijzigingen opslaan</button>
+    }
+</form>
+@section Scripts { <script src="~/js/registration-form.js" asp-append-version="true"></script> }

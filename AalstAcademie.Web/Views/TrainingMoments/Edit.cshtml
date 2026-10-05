@@ -1,0 +1,36 @@
+@* Sprint 003: Bewaart exacte tijdfracties, gekozen zaal en de oorspronkelijke momentversie. Het maximum is hier readonly en heeft een afzonderlijke wijzigingsactie. *@
+@using AalstAcademie.Web.Models.Training
+@model TrainingMomentEditViewModel
+@{ ViewData["Title"] = "Momentplanning wijzigen"; var moment = Model.Details.Moment; }
+@* Volledige tickprecisie en het oorspronkelijke versietoken blijven behouden; het maximum is readonly. *@
+<h1>Momentplanning wijzigen</h1><p>@moment.TrainingTitle — maximum @moment.MaximumParticipants deelnemers</p>
+<p><a asp-controller="TrainingManagement" asp-action="Details" asp-route-id="@moment.TrainingId">Terug naar de opleiding</a></p>
+<div asp-validation-summary="All" class="text-danger training-validation-summary" role="alert" tabindex="-1" autofocus></div>
+@if (!Model.Details.CanEditPlanning)
+{ <p class="alert alert-info">Planning wijzigen is niet mogelijk bij registratiehistorie, een gestart of geannuleerd moment.</p>
+<dl><dt>Datum</dt><dd>@Model.Date</dd><dt>Begin en einde</dt><dd>@Model.StartTime – @Model.EndTime</dd><dt>Zaal</dt><dd>@moment.LocationName</dd></dl> }
+else
+{
+<form action="/TrainingMoments/Availability" method="get" class="moment-planning">
+<input type="hidden" name="trainingId" value="@moment.TrainingId" /><input type="hidden" name="momentId" value="@moment.Id" />
+<input type="hidden" name="ExpectedVersion" value="@Model.ExpectedVersion" /><input type="hidden" name="LocationId" value="@Model.LocationId" />
+<fieldset><legend class="h5">Planning in Belgische tijd</legend>
+<label for="lookup-date">Datum (JJJJ-MM-DD)</label><input id="lookup-date" name="Date" value="@Model.Date" class="form-control" placeholder="2026-12-15" />
+<label for="lookup-start">Begintijd</label><input id="lookup-start" name="StartTime" value="@Model.StartTime" class="form-control" placeholder="14:00" />
+<label for="lookup-end">Eindtijd</label><input id="lookup-end" name="EndTime" value="@Model.EndTime" class="form-control" placeholder="16:00" />
+<p class="form-text">UU:mm of UU:mm:ss met hoogstens zeven fractiecijfers. Begin en einde vallen op dezelfde dag.</p></fieldset><button class="btn btn-primary mt-3" type="submit">Toon zalen</button></form>
+<p class="mt-3">De getoonde beschikbaarheid reserveert geen zaal. Opslaan controleert de actuele planning opnieuw.</p>
+<form asp-action="Edit" asp-route-id="@moment.Id" method="post" class="moment-planning">
+<input type="hidden" name="Date" value="@Model.Date" /><input type="hidden" name="StartTime" value="@Model.StartTime" /><input type="hidden" name="EndTime" value="@Model.EndTime" /><input type="hidden" name="ExpectedVersion" value="@Model.ExpectedVersion" />
+<label for="save-room">Zaal</label><select id="save-room" name="LocationId" class="form-select">
+<option value="">Kies een zaal</option>
+@if (!string.IsNullOrWhiteSpace(Model.LocationId) && !Model.Rooms.Any(x => x.Id.ToString() == Model.LocationId))
+{ <option value="@Model.LocationId" selected>Oorspronkelijke keuze @Model.LocationId — herlees de zalen</option> }
+@foreach (var room in Model.Rooms)
+{ <option value="@room.Id" selected="@(room.Id.ToString() == Model.LocationId)">@room.Name — capaciteit @room.MaximumCapacity — @(room.IsAvailable ? "beschikbaar" : "niet beschikbaar")</option> }
+</select><button type="submit" class="btn btn-primary mt-3">Planning opslaan</button></form>
+}
+@* Bij een conflict blijft ook readonly de oorspronkelijke poging zichtbaar, veilig geëncodeerd. *@
+@if (!ViewData.ModelState.IsValid) { <p>Ingevoerde planning: @Model.Date, @Model.StartTime – @Model.EndTime, zaal @Model.LocationId.</p><input type="hidden" name="OriginalExpectedVersion" value="@Model.ExpectedVersion" /> }
+<p class="mt-3"><a asp-action="Edit" asp-route-id="@moment.Id">Moment opnieuw lezen</a></p>
+

@@ -1,0 +1,55 @@
+@using AalstAcademie.Web.Models.Enrolment
+@model EmployeeMomentViewModel
+@{ ViewData["Title"] = "Opleidingsmoment"; var detail = Model.Moment;
+    var trainingVersion = EnrolmentHttpForms.Raw(ViewData.ModelState, "ExpectedTrainingVersion", Model.Input.ExpectedTrainingVersion);
+    var momentVersion = EnrolmentHttpForms.Raw(ViewData.ModelState, "ExpectedMomentVersion", Model.Input.ExpectedMomentVersion);
+    var motivation = EnrolmentHttpForms.Raw(ViewData.ModelState, "Motivation", Model.Input.Motivation);
+    var showForm = Model.IsPost || detail is not null && (detail.CanRequest || detail.CanJoin);
+}
+<h1>@(detail?.Row.Title ?? "Opleidingsmoment niet meer beschikbaar")</h1>
+<div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+@if (detail is not null)
+{
+    <p class="training-description">@detail.Description</p>
+    <dl class="training-details">
+        <dt>Categorie</dt><dd>@detail.Row.Category</dd>
+        <dt>Datum en uur</dt><dd>@detail.Row.Date.ToString("dd/MM/yyyy") @detail.Row.StartTime.ToString("HH:mm")–@detail.Row.EndTime.ToString("HH:mm")</dd>
+        <dt>Zaal en adres</dt><dd>@detail.Row.Location — @detail.Row.Address</dd>
+        <dt>Lesgever</dt><dd>@detail.Row.InstructorName</dd>
+        <dt>Totale externe prijs</dt><dd>@(detail.Row.ExternalTotalPriceEuros is decimal price ? $"{price:0.00} EUR" : "Niet van toepassing")</dd>
+        <dt>Directe plaatsen</dt><dd>@detail.Row.DirectAvailable</dd>
+        <dt>Voorrang wachtenden</dt><dd>@detail.Row.EligibleWaiters</dd>
+        <dt>Je contactgegevens</dt><dd>@detail.Actor.DisplayName — @detail.Actor.Email — @detail.Actor.PhoneNumber</dd>
+        <dt>Afdeling</dt><dd>@detail.Actor.DepartmentName</dd>
+        <dt>Leidinggevende</dt><dd>@(detail.Actor.ManagerName ?? "Geen")</dd>
+    </dl>
+    @if (detail.HasActiveParticipation) { <p>Je hebt al een actieve deelname of wachtlijstaansluiting voor deze opleiding.</p> }
+    @if (detail.RefusedThisMoment) { <p>Een eerdere aanvraag voor dit moment is geweigerd. Een ander passend moment kan wel mogelijk zijn.</p> }
+}
+@if (showForm)
+{
+    @* De geposte versies komen uitsluitend uit het oude formulier; verse detailgegevens vervangen ze nooit. *@
+    <form method="post" action="/EmployeeEnrolments/@(Model.Join ? "JoinWaitlist" : "Request")/@Model.MomentId" class="account-form training-form">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="ExpectedTrainingVersion" value="@trainingVersion" />
+        <input type="hidden" name="ExpectedMomentVersion" value="@momentVersion" />
+        <fieldset><legend>@(Model.Join ? "Bewust aansluiten op de wachtlijst" : "Deelname aanvragen")</legend>
+            <label for="Motivation" class="form-label">Motivatie @(detail?.RequiresMotivation == true ? "(verplicht)" : "(optioneel)")</label>
+            <textarea id="Motivation" name="Motivation" class="form-control" rows="5" maxlength="4000" required="@(detail?.RequiresMotivation == true)" aria-describedby="motivation-help">@motivation</textarea>
+            <p id="motivation-help" class="form-text">Maximaal 4000 tekens. Een aanvraag wacht op beoordeling.</p>
+            @Html.ValidationMessage("Motivation", null, new { @class = "text-danger" })
+            @if (Model.Join)
+            {
+                <p>Dit moment heeft geen directe plaats. Aansluiten reserveert geen specifiek moment en maakt geen automatische aanvraag.</p>
+                <div class="form-check">
+                    <input id="Consent" name="Consent" type="checkbox" value="true" checked="@Model.Input.Consent" class="form-check-input" required />
+                    <label for="Consent" class="form-check-label">Ik wil bewust aansluiten op de wachtlijst voor deze opleiding.</label>
+                </div>
+                @Html.ValidationMessage("Consent", null, new { @class = "text-danger" })
+            }
+        </fieldset>
+        @if (!Model.IsConflict) { <button class="btn btn-primary" type="submit">@(Model.Join ? "Aansluiten op wachtlijst" : "Aanvraag indienen")</button> }
+    </form>
+}
+<p class="training-actions mt-3"><a href="/EmployeeCatalogue/Moment/@Model.MomentId">Moment bewust opnieuw lezen</a><a href="/EmployeeCatalogue">Terug naar aanbod</a><a href="/MyRegistrations">Mijn opleidingen</a></p>
+@section Scripts { <script src="~/js/registration-form.js" asp-append-version="true"></script> }

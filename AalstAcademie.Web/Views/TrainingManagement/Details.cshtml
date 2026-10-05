@@ -1,0 +1,63 @@
+@* Sprint 003: Toont één gedeelde definitie en haar afzonderlijke momenten, voorwaarden en scoped acties. Beschrijving en labels worden als gewone tekst door Razor gecodeerd. *@
+@using System.Globalization
+@using AalstAcademie.Web.Models.Domain
+@using AalstAcademie.Web.Models.Training
+@model TrainingDetailsViewModel
+@inject AalstAcademie.Web.Services.Training.TrainingMomentManagementQueries MomentQueries
+@{ ViewData["Title"] = "Opleiding bekijken"; var training = Model.Details.Training; }
+@* Alle namen en beschrijving zijn gewone geëncodeerde tekst; de opleiding bewaart geen planning meer. *@
+<h1>@training.Title</h1>
+<p><a asp-action="Index">Terug naar het opleidingenoverzicht</a></p>
+@if (TempData["TrainingMessage"] is string message) { <div class="alert alert-success" role="status">@message</div> }
+<dl class="training-details">
+    <dt>Eigenaar</dt><dd>@training.OwnerDisplayName (@(training.IsExternalOwner ? "Externe lesgever" : "Interne lesgever"))</dd>
+    <dt>Categorie</dt><dd>@training.CategoryName</dd>
+    <dt>Totale externe prijs</dt><dd>@(training.IsExternalOwner ? $"{training.ExternalTotalPriceEuros?.ToString("0.00", CultureInfo.GetCultureInfo("nl-BE"))} EUR" : "Niet van toepassing bij een interne lesgever")</dd>
+    <dt>Motivatie vereist</dt><dd>@(training.RequiresMotivation ? "Ja" : "Nee")</dd>
+    <dt>Doelgroep</dt>
+    <dd>
+        @if (training.AudienceScope == TrainingAudienceScope.Unassigned) { <p class="mb-0">Nog toe te wijzen. Een beheerder kiest later de doelgroepafdelingen.</p> }
+        else if (training.AudienceScope == TrainingAudienceScope.AllDepartments) { <p class="mb-0">Alle afdelingen, inclusief afdelingen die later worden toegevoegd.</p> }
+        else
+        {
+            <p class="mb-1">Geselecteerde afdelingen:</p>
+            <ul>@foreach (var department in Model.Details.Departments) { <li>@department.Name</li> }</ul>
+        }
+    </dd>
+</dl>
+<h2 class="h5">Beschrijving</h2>
+@if (string.IsNullOrWhiteSpace(Model.Details.Description)) { <p>Er is geen beschrijving opgegeven.</p> }
+else { <p class="training-description">@Model.Details.Description</p> }
+@if (Model.Details.HasHistory)
+{
+    <p class="alert alert-info">Deelname- of wachtlijsthistorie bewaart de prijs en motivatieplicht. Titel, beschrijving, categorie en doelgroep blijven aanpasbaar.</p>
+}
+<div class="training-actions">
+    @if (Model.Details.CanEdit) { <a class="btn btn-primary" asp-action="Edit" asp-route-id="@training.Id">Gegevens wijzigen</a> }
+    @if (Model.Details.CanAssignAudience) { <a class="btn btn-outline-primary" asp-action="Audience" asp-route-id="@training.Id">Doelgroep toewijzen</a> }
+</div>
+<p><a asp-controller="RegistrationManagement" asp-action="Index" asp-route-trainingId="@training.Id">Inschrijvingen voor deze opleiding beheren</a></p>
+<h2 class="mt-4">Opleidingsmomenten</h2>
+@* Nieuwe momenten behouden de definitie/doelgroep. Per rij lezen we actuele status/start/historie voor de actielinks. *@
+@if (Model.Details.CanCreateMoment) { <p><a class="btn btn-primary" asp-controller="TrainingMoments" asp-action="Create" asp-route-trainingId="@training.Id">Moment aanmaken</a></p> }
+@if (Model.Details.Moments.Count == 0) { <p>Er zijn nog geen opleidingsmomenten.</p> }
+else
+{
+    <div class="table-responsive training-table-region" tabindex="0" role="region" aria-label="Opleidingsmomenten, horizontaal te scrollen">
+        <table class="table">
+            <caption>Planning van deze opleiding in Belgische tijd.</caption>
+            <thead><tr><th scope="col">Datum</th><th scope="col">Begin en einde</th><th scope="col">Zaal</th><th scope="col">Maximum deelnemers</th><th scope="col">Status</th><th scope="col">Acties</th></tr></thead>
+            <tbody>
+                @foreach (var moment in Model.Details.Moments)
+                {
+                    var current = await MomentQueries.GetDetailsAsync(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)!.Value, moment.Id);
+                    <tr><td>@moment.Date.ToString("dd/MM/yyyy")</td><td>@moment.StartTime.ToString("HH:mm:ss.fffffff") – @moment.EndTime.ToString("HH:mm:ss.fffffff")</td><td>@moment.LocationName</td><td>@moment.MaximumParticipants</td><td>@(moment.Status == TrainingMomentStatus.Scheduled ? "Gepland" : "Geannuleerd")</td><td>
+                    @if (current.Value?.CanEditPlanning == true) { <a asp-controller="TrainingMoments" asp-action="Edit" asp-route-id="@moment.Id">Planning<span class="visually-hidden">: moment @moment.Id</span></a> }
+                    @if (current.Value?.CanEditCapacity == true) { <a asp-controller="TrainingMoments" asp-action="Capacity" asp-route-id="@moment.Id">Maximum<span class="visually-hidden">: moment @moment.Id</span></a> }
+                    @if (current.Value?.CanCancel == true) { <a asp-controller="TrainingMoments" asp-action="Cancel" asp-route-id="@moment.Id">Moment annuleren<span class="visually-hidden">: moment @moment.Id</span></a> }
+                    </td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

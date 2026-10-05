@@ -1,0 +1,43 @@
+@using AalstAcademie.Web.Models.Identity
+@model AalstAcademie.Web.Models.Accounts.AccountApplicationsIndexViewModel
+@{
+    ViewData["Title"] = "Accountaanvragen";
+    var snapshot = Model.Snapshot;
+    string Label(string status) => status switch { "Pending" => "In afwachting", "Refused" => "Geweigerd", "Approved" => "Goedgekeurd", _ => status };
+    string TypeLabel(string? type) => type switch { "Employee" => "Medewerker", "InternalInstructor" => "Interne lesgever", "ExternalInstructor" => "Externe lesgever", _ => "Onbekend" };
+}
+@* De data-attributen geven het script de serverselectie mee; de eerste lijst is al volledig gerenderd. *@
+<section data-account-applications data-status="@snapshot.Status" data-page="@snapshot.Page">
+    <h1>Accountaanvragen</h1>
+    <p>Controleer de profielgegevens en interne afdeling voordat je een aanvraag goedkeurt.</p>
+    @* Gewone statuslinks hebben een herkenbare navigatienaam en aria-current voor de actieve selectie. *@
+    <nav aria-label="Aanvraagstatus" class="nav nav-pills gap-2 mb-3">
+        @foreach (var status in new[] { "Pending", "Refused", "Approved" })
+        {
+            <a href="/Admin/AccountApplications?status=@status" data-account-status="@status" class="nav-link @(snapshot.Status == status ? "active" : "")" aria-current="@(snapshot.Status == status ? "page" : null)">@Label(status)</a>
+        }
+    </nav>
+    <button class="btn btn-outline-secondary mb-2" type="button" data-account-applications-refresh>Nu verversen</button>
+    <p data-account-applications-status role="status" aria-live="polite">Gegevens geladen.</p>
+    @* Gewone links blijven werken zonder JS; de browser vervangt alleen deze lijst, nooit een reviewformulier. *@
+    @* Op een smal scherm kan deze regio met het toetsenbord horizontaal scrollen zonder de hele pagina te verbreden. *@
+    <div class="table-responsive" tabindex="0" role="region" aria-label="Accountaanvragen per status">
+        <table class="table align-middle">
+            <caption class="visually-hidden" data-account-application-caption>@Label(snapshot.Status): accountaanvragen</caption>
+            <thead><tr><th scope="col">Naam</th><th scope="col">Type</th><th scope="col">Afdeling of organisatie</th><th scope="col">Aangevraagd</th><th scope="col">Status</th></tr></thead>
+            <tbody data-account-application-rows>
+                @foreach (var row in snapshot.Rows)
+                {
+                    <tr><td><a asp-action="Details" asp-route-id="@row.Id">@row.DisplayName</a></td><td>@TypeLabel(row.RequestedAccountType)</td><td>@(row.DepartmentOrOrganization ?? "—")</td><td>@(row.AccountRequestedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Onbekend")</td><td>@Label(row.Status)</td></tr>
+                }
+                @if (snapshot.Rows.Count == 0) { <tr><td colspan="5">Geen aanvragen in deze lijst.</td></tr> }
+            </tbody>
+        </table>
+    </div>
+    @* Alleen bestaande vorige/volgende pagina's worden aangeboden; de server blijft verantwoordelijk voor paginering. *@
+    <nav data-account-application-pages aria-label="Aanvraagpagina's">
+        @if (snapshot.Page > 1) { <a class="btn btn-outline-secondary me-2" href="/Admin/AccountApplications?status=@snapshot.Status&page=@(snapshot.Page - 1)" data-account-page="@(snapshot.Page - 1)">Vorige</a> }
+        @if (snapshot.Page < snapshot.TotalPages) { <a class="btn btn-outline-secondary me-2" href="/Admin/AccountApplications?status=@snapshot.Status&page=@(snapshot.Page + 1)" data-account-page="@(snapshot.Page + 1)">Volgende</a> }
+        <span>Pagina @snapshot.Page van @snapshot.TotalPages</span>
+    </nav>
+</section>

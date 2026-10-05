@@ -1,0 +1,109 @@
+@page
+@model AalstAcademie.Web.Areas.Identity.Pages.Account.RegisterModel
+@{
+    ViewData["Title"] = "Account aanvragen";
+}
+@* De pagina biedt de drie toegestane accounttypen; rollen en goedkeuringsstatus zijn geen formuliervelden. *@
+<h1>Account aanvragen</h1>
+@if (!Model.RegistrationAvailable)
+{
+    <p>Publieke registratie is hier niet beschikbaar. Neem contact op met de beheerder.</p>
+    <a asp-page="Login">Naar aanmelden</a>
+}
+else
+{
+    <p>Na je aanvraag beoordeelt een beheerder je account. Tot die tijd kun je je eigen status bekijken en uitloggen.</p>
+    @* De form-taghelper voegt CSRF-bescherming toe; veldgroepen blijven semantisch gegroepeerd met legends. *@
+    <form method="post" class="account-form" data-registration-form>
+        <div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+        <fieldset>
+            <legend>Account en contactgegevens</legend>
+            @* Deze keuze bepaalt de verplichte profielgegevens; de server valideert dezelfde typegrens. *@
+            <div class="mb-3">
+                <label asp-for="Input.RequestedAccountType" class="form-label">Accounttype</label>
+                <select asp-for="Input.RequestedAccountType" class="form-select" required aria-describedby="account-type-help">
+                    <option value="">Kies een accounttype</option>
+                    <option value="1">Medewerker</option>
+                    <option value="2">Interne lesgever</option>
+                    <option value="3">Externe lesgever</option>
+                </select>
+                <p id="account-type-help" class="form-text">Kies de hoedanigheid waarvoor je het account aanvraagt.</p>
+                <span asp-validation-for="Input.RequestedAccountType" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.Email" class="form-label">E-mailadres</label>
+                <input asp-for="Input.Email" type="email" class="form-control" autocomplete="email" maxlength="256" required />
+                <span asp-validation-for="Input.Email" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.PhoneNumber" class="form-label">Telefoonnummer</label>
+                <input asp-for="Input.PhoneNumber" type="tel" class="form-control" autocomplete="tel" maxlength="50" required />
+                <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.Password" class="form-label">Wachtwoord</label>
+                <input asp-for="Input.Password" type="password" value="" class="form-control" autocomplete="new-password" required aria-describedby="password-help" />
+                <p id="password-help" class="form-text">Gebruik minstens 6 tekens met een hoofdletter, kleine letter, cijfer en speciaal teken.</p>
+                <span asp-validation-for="Input.Password" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.ConfirmPassword" class="form-label">Herhaal wachtwoord</label>
+                <input asp-for="Input.ConfirmPassword" type="password" value="" class="form-control" autocomplete="new-password" required />
+                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+            </div>
+        </fieldset>
+        @* Zonder JavaScript blijven de groepen zichtbaar. De server weigert gegevens van een ander type. *@
+        <p class="form-text">Vul alleen de profielvelden voor je gekozen accounttype in. Laat de andere profielvelden leeg.</p>
+        @* Medewerkers en interne lesgevers delen persoonlijke gegevens en een bestaande afdeling. *@
+        <fieldset data-registration-types="1 2">
+            <legend>Persoonlijk profiel — medewerker of interne lesgever</legend>
+            <div class="mb-3">
+                <label asp-for="Input.FirstName" class="form-label">Voornaam</label>
+                <input asp-for="Input.FirstName" class="form-control" autocomplete="given-name" maxlength="100" data-type-required />
+                <span asp-validation-for="Input.FirstName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.LastName" class="form-label">Achternaam</label>
+                <input asp-for="Input.LastName" class="form-control" autocomplete="family-name" maxlength="100" data-type-required />
+                <span asp-validation-for="Input.LastName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.DepartmentId" class="form-label">Afdeling</label>
+                <select asp-for="Input.DepartmentId" asp-items="Model.Departments" class="form-select" data-type-required>
+                    <option value="">Kies een afdeling</option>
+                </select>
+                <span asp-validation-for="Input.DepartmentId" class="text-danger"></span>
+            </div>
+        </fieldset>
+        @* Sprint 004: beide interne types mogen Geen of een gekoppelde verantwoordelijke kiezen. *@
+        <fieldset data-registration-types="1 2">
+            <legend>Optionele leidinggevende</legend>
+            <div class="mb-3">
+                <label asp-for="Input.ManagerUserId" class="form-label">Leidinggevende (optioneel)</label>
+                <select asp-for="Input.ManagerUserId" asp-items="Model.Managers" class="form-select">
+                    @if (!string.IsNullOrWhiteSpace(Model.Input.ManagerUserId) && !Model.Managers.Any(x => x.Value == Model.Input.ManagerUserId))
+                    { <option value="@Model.Input.ManagerUserId">Oorspronkelijke keuze niet beschikbaar — lees opnieuw</option> }
+                </select>
+                <span asp-validation-for="Input.ManagerUserId" class="text-danger"></span>
+            </div>
+        </fieldset>
+        @* Externe lesgevers gebruiken organisatiegegevens; een btw-nummer blijft optioneel. *@
+        <fieldset data-registration-types="3">
+            <legend>Externe lesgever</legend>
+            <div class="mb-3">
+                <label asp-for="Input.OrganizationName" class="form-label">Organisatienaam</label>
+                <input asp-for="Input.OrganizationName" class="form-control" autocomplete="organization" maxlength="200" data-type-required />
+                <span asp-validation-for="Input.OrganizationName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.VatNumber" class="form-label">Btw-nummer (optioneel)</label>
+                <input asp-for="Input.VatNumber" class="form-control" maxlength="32" />
+                <span asp-validation-for="Input.VatNumber" class="text-danger"></span>
+            </div>
+        </fieldset>
+        <button type="submit" class="btn btn-primary">Account aanvragen</button>
+    </form>
+}
+@section Scripts {
+    <script src="~/js/registration-form.js" asp-append-version="true"></script>
+}

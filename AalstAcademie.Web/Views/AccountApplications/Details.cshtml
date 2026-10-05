@@ -1,0 +1,68 @@
+@using AalstAcademie.Web.Models.Identity
+@model AalstAcademie.Web.Models.Accounts.AccountApplicationDetailsViewModel
+@{ ViewData["Title"] = "Aanvraag beoordelen"; }
+@* Razor encodeert tekst uit de aanvraag automatisch; profiel en weigeringreden worden niet als HTML uitgevoerd. *@
+<h1>@Model.DisplayName</h1>
+<p><a href="/Admin/AccountApplications">Terug naar accountaanvragen</a></p>
+@if (TempData["ReviewMessage"] is string message) { <div class="alert alert-success" role="status">@message</div> }
+@* Serverfouten worden aangekondigd; het script brengt na de POST de focus naar deze samenvatting. *@
+<div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+<dl class="account-details">
+    <dt>Accounttype</dt><dd>@(Model.RequestedAccountType switch { RequestedAccountType.Employee => "Medewerker", RequestedAccountType.InternalInstructor => "Interne lesgever", RequestedAccountType.ExternalInstructor => "Externe lesgever", _ => "Onbekend" })</dd>
+    <dt>Status</dt><dd>@(Model.Status switch { AccountApprovalStatus.Pending => "In afwachting", AccountApprovalStatus.Refused => "Geweigerd", _ => "Goedgekeurd" })</dd>
+    <dt>E-mailadres</dt><dd>@Model.Email</dd><dt>Telefoonnummer</dt><dd>@Model.PhoneNumber</dd>
+    <dt>Afdeling</dt><dd>@(Model.DepartmentName ?? "—")</dd><dt>Leidinggevende</dt><dd>@(Model.ManagerName ?? "Geen")</dd>
+    <dt>Organisatie</dt><dd>@(Model.OrganizationName ?? "—")</dd><dt>Btw-nummer</dt><dd>@(Model.VatNumber ?? "—")</dd>
+    <dt>Aangevraagd</dt><dd>@(Model.AccountRequestedAtUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "Onbekend")</dd>
+</dl>
+@if (Model.RefusalReason is not null) { <h2 class="h5">Weigeringreden</h2><p class="account-reason">@Model.RefusalReason</p> }
+@* Bij een verouderde versie wordt niet stilzwijgend opnieuw gepost: eerst bewust de huidige aanvraag lezen. *@
+@if (Model.IsConflict)
+{
+    <a class="btn btn-primary" asp-action="Details" asp-route-id="@Model.Id">Huidige gegevens opnieuw lezen</a>
+}
+else if (Model.CanReview)
+{
+    @* De versie is die van de bewust gelezen aanvraag; live refresh mag deze hidden input niet vervangen. *@
+    @if (Model.Status == AccountApprovalStatus.Pending)
+    {
+        @* Elke beslissing heeft een eigen POST-route en antiforgerytoken; goedkeuren kan de afdeling corrigeren. *@
+        <form asp-action="Approve" asp-route-id="@Model.Id" method="post" class="account-form mb-4">
+            <input name="ExpectedConcurrencyStamp" type="hidden" value="@Model.Input.ExpectedConcurrencyStamp" />
+            <fieldset><legend class="h5">Goedkeuren</legend>
+                @if (Model.RequestedAccountType is RequestedAccountType.Employee or RequestedAccountType.InternalInstructor)
+                {
+                    <label for="DepartmentId" class="form-label">Gecontroleerde afdeling</label>
+                    <select name="DepartmentId" id="DepartmentId" class="form-select mb-2" required>
+                        <option value="">Kies een afdeling</option>
+                        @foreach (var department in Model.Departments) { <option value="@department.Value" selected="@(department.Value == Model.Input.DepartmentId?.ToString())">@department.Text</option> }
+                    </select>
+                    @Html.ValidationMessage("DepartmentId", new { @class = "text-danger" })
+                }
+                <p>Controleer of deze persoon of organisatie in de aangevraagde hoedanigheid mag deelnemen.</p>
+                <button class="btn btn-success" type="submit">Account goedkeuren</button>
+            </fieldset>
+        </form>
+        @* De verplichte reden is later zichtbaar voor de aanvrager; live snapshots raken deze textarea niet aan. *@
+        <form asp-action="Refuse" asp-route-id="@Model.Id" method="post" class="account-form mb-4">
+            <input name="ExpectedConcurrencyStamp" type="hidden" value="@Model.Input.ExpectedConcurrencyStamp" />
+            <fieldset><legend class="h5">Weigeren</legend>
+                <label for="RefusalReason" class="form-label">Reden voor de aanvrager</label>
+                <textarea id="RefusalReason" name="RefusalReason" maxlength="1000" required class="form-control mb-2" rows="4">@Model.Input.RefusalReason</textarea>
+                @Html.ValidationMessage("RefusalReason", new { @class = "text-danger" })
+                <button class="btn btn-outline-danger" type="submit">Account weigeren</button>
+            </fieldset>
+        </form>
+    }
+    else if (Model.Status == AccountApprovalStatus.Refused)
+    {
+        @* Heropenen start een nieuwe beoordeling zonder al rollen of toegang toe te kennen. *@
+        <form asp-action="Reopen" asp-route-id="@Model.Id" method="post">
+            <input name="ExpectedConcurrencyStamp" type="hidden" value="@Model.Input.ExpectedConcurrencyStamp" />
+            <p>Heropenen zet de aanvraag terug in afwachting en kent geen rechten toe.</p>
+            <button class="btn btn-primary" type="submit">Aanvraag heropenen</button>
+        </form>
+    }
+}
+else { <p>Deze aanvraag kan hier alleen worden gelezen.</p> }
+@section Scripts { <script src="~/js/registration-form.js" asp-append-version="true"></script> }

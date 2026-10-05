@@ -1,0 +1,11 @@
+@* Sprint 003: Vraagt naam, optioneel adres en positief zaalmaximum met labels en servervalidatie. Sleutel en versie worden niet door de gebruiker gekozen. *@
+@using AalstAcademie.Web.Models.Training
+@model LocationCreateViewModel
+@{ ViewData["Title"] = "Zaal aanmaken"; }
+@* Gedeelde zaalgegevens worden uitsluitend door een actuele beheerder geschreven. *@
+<h1>Zaal aanmaken</h1><p><a asp-action="Index">Terug naar het zaaloverzicht</a></p>
+<div asp-validation-summary="All" class="text-danger training-validation-summary" role="alert" tabindex="-1" autofocus></div><form asp-action="Create" method="post" class="location-form"><label asp-for="Name"></label><input asp-for="Name" class="form-control" /><span asp-validation-for="Name" class="text-danger"></span>
+<label asp-for="Address"></label><textarea asp-for="Address" class="form-control"></textarea><span asp-validation-for="Address" class="text-danger"></span>
+<label asp-for="MaximumCapacity"></label><input asp-for="MaximumCapacity" class="form-control" inputmode="numeric" /><span asp-validation-for="MaximumCapacity" class="text-danger"></span>
+<button class="btn btn-primary mt-3" type="submit">Zaal aanmaken</button></form>
+

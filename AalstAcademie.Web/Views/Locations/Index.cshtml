@@ -1,0 +1,17 @@
+@* Sprint 003: Toont huidige gedeelde zaallabels, maxima en toegestane beheernavigatie. Referentieflags zijn leesfeedback en geen toestemming voor een latere write. *@
+@using AalstAcademie.Web.Models.Training
+@model LocationIndexViewModel
+@{ ViewData["Title"] = "Zalen beheren"; }
+@* Labels zijn actuele geëncodeerde tekst; readonly guards ondersteunen de afzonderlijke POST-controles. *@
+<h1>Zalen beheren</h1><p><a class="btn btn-primary" asp-action="Create">Zaal aanmaken</a></p>
+@if (Model.Rows.Count == 0) { <p>Er zijn nog geen zalen.</p> }
+else {
+<div class="table-responsive training-table-region" tabindex="0" role="region" aria-label="Zalen, horizontaal te scrollen">
+<table class="table"><caption>Gedeelde zalen en hun capaciteit.</caption>
+<thead><tr><th scope="col">Zaal</th><th scope="col">Adres</th><th scope="col">Capaciteit</th><th scope="col">Acties</th></tr></thead>
+<tbody>@foreach (var row in Model.Rows) {
+<tr><td>@row.Name</td><td>@row.Address</td><td>@row.MaximumCapacity</td><td>
+<a asp-action="Edit" asp-route-id="@row.Id">Wijzigen<span class="visually-hidden">: @row.Name</span></a>
+@if (row.CanDelete) { <a asp-action="Delete" asp-route-id="@row.Id">Verwijderen<span class="visually-hidden">: @row.Name</span></a> }
+else { <span>In gebruik</span> }</td></tr> }</tbody></table></div> }
+

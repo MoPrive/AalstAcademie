@@ -1,0 +1,29 @@
+@using AalstAcademie.Web.Models.Enrolment
+@model RegistrationReviewViewModel
+@{ ViewData["Title"] = "Aanvraag beoordelen"; var row = Model.Registration; }
+<h1>Aanvraag beoordelen</h1><h2 class="h5">@row.Title — @row.ParticipantName</h2>
+<p>@row.Date.ToString("dd/MM/yyyy") @row.StartTime.ToString("HH:mm") — @row.Status</p>
+<p>@row.Email — @row.Phone — @row.Department — @(row.Manager ?? "Geen leidinggevende gekoppeld")</p>
+<p class="account-reason">Motivatie: @row.Motivation</p><p class="account-reason">Reden: @row.DecisionReason</p>
+@if (TempData["EnrolmentMessage"] is string message) { <p class="alert alert-success" role="status">@message</p> }
+<div asp-validation-summary="All" class="text-danger validation-summary" role="alert" tabindex="-1"></div>
+<p><a asp-action="Details" asp-route-id="@row.Id">Deze aanvraag bewust opnieuw lezen</a> — <a asp-action="Index" asp-route-trainingId="@row.TrainingId">Terug naar inschrijvingen</a></p>
+@if (row.CanConfirm || Model.IsConflict)
+{
+    <form method="post" asp-action="Confirm" asp-route-id="@row.Id" class="mb-4">
+        <input type="hidden" name="ExpectedRegistrationVersion" value="@EnrolmentHttpForms.Raw(ViewData.ModelState, "ExpectedRegistrationVersion", Model.Input.ExpectedRegistrationVersion)" />
+        <input type="hidden" name="ExpectedMomentVersion" value="@EnrolmentHttpForms.Raw(ViewData.ModelState, "ExpectedMomentVersion", Model.Input.ExpectedMomentVersion)" />
+        <p>Bevestigen behoudt de al bezette plaats.</p><button type="submit" class="btn btn-primary" disabled="@Model.IsConflict">Aanvraag bevestigen</button>
+    </form>
+}
+@if (row.CanRefuse || Model.IsConflict)
+{
+    <form method="post" asp-action="Refuse" asp-route-id="@row.Id">
+        <input type="hidden" name="ExpectedRegistrationVersion" value="@EnrolmentHttpForms.Raw(ViewData.ModelState, "ExpectedRegistrationVersion", Model.Input.ExpectedRegistrationVersion)" />
+        <input type="hidden" name="ExpectedMomentVersion" value="@EnrolmentHttpForms.Raw(ViewData.ModelState, "ExpectedMomentVersion", Model.Input.ExpectedMomentVersion)" />
+        <label for="DecisionReason">Reden voor weigering (optioneel, maximaal 1000 tekens)</label>
+        <textarea id="DecisionReason" name="DecisionReason" class="form-control">@EnrolmentHttpForms.Raw(ViewData.ModelState, "DecisionReason", Model.Input.DecisionReason)</textarea>
+        <p>Weigeren geeft de plaats vrij voor de eerste geschikte wachtende.</p><button type="submit" class="btn btn-danger" disabled="@Model.IsConflict">Aanvraag weigeren</button>
+    </form>
+}
+@section Scripts { <script src="~/js/registration-form.js" asp-append-version="true"></script> }

@@ -1,0 +1,47 @@
+/* Sprint 003: Voegt responsive opleidings-, moment- en zaalvormgeving toe met leesbare tekst en focusweergave. De CSS bepaalt geen rechten of domeinregels. */
+/* Accountschermen: leesbare formulieren, zichtbare focus en smalle weergave. */
+/* De basismaat en flexkolom houden tekst leesbaar en de footer onder de inhoud bij korte pagina's. */
+html { font-size: 16px; }
+body { min-height: 100vh; display: flex; flex-direction: column; color: #202936; background: #fafbfd; }
+main { flex: 1; }
+.navbar-brand { font-weight: 700; color: #174c72; }
+h1 { font-size: clamp(1.65rem, 4vw, 2.25rem); margin-bottom: 1.25rem; }
+/* Begrensde formulieren en zichtbare fieldsets maken samenhangende gegevensgroepen herkenbaar. */
+.account-form { max-width: 42rem; }
+.account-form fieldset { padding: 1rem; margin-bottom: 1rem; border: 1px solid #ccd4de; border-radius: .4rem; background: white; }
+.account-form legend { font-size: 1.15rem; font-weight: 600; float: none; width: auto; padding: 0 .35rem; }
+/* Regels uit een weigeringreden blijven zichtbaar; lange woorden of adressen veroorzaken geen pagina-overloop. */
+.account-reason { white-space: pre-wrap; overflow-wrap: anywhere; }
+.account-details { display: grid; grid-template-columns: minmax(8rem, 12rem) 1fr; gap: .45rem 1rem; max-width: 48rem; }
+.account-details dd { overflow-wrap: anywhere; }
+/* Lege foutgebieden nemen geen ruimte in; veldfouten krijgen naast tekst ook een duidelijke rand. */
+.validation-summary:empty { display: none; }
+.validation-summary ul { padding-left: 1.25rem; }
+.input-validation-error { border: 2px solid #a52424; }
+/* Een zichtbare toetsenbordfocus en de skiplink maken navigatie bruikbaar zonder muis. */
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #185ba0; outline-offset: 3px; }
+.skip-link { position: absolute; top: -5rem; left: 1rem; z-index: 2000; background: white; padding: .6rem; }
+.skip-link:focus { top: .5rem; }
+.table td, .table th { overflow-wrap: anywhere; }
+/* Op smalle schermen scrollt alleen de focusbare tabelregio; kolomteksten blijven leesbaar. */
+.table-responsive .table { min-width: 42rem; }
+/* Onder Bootstrap's kleine breekpunt wordt het definitieoverzicht één kolom; invoer behoudt bruikbare ruimte. */
+@media (max-width: 576px) { .account-details { grid-template-columns: 1fr; gap: .15rem; } .account-details dd { margin-bottom: .8rem; } .account-form fieldset { padding: .75rem; } }
+/* Opleidingsbeschrijvingen blijven gewone tekst: regels behouden en lange inhoud binnen het scherm laten afbreken. */
+.training-description { white-space: pre-wrap; overflow-wrap: anywhere; }
+.training-details { display: grid; grid-template-columns: minmax(8rem, 12rem) minmax(0, 1fr); gap: .45rem 1rem; max-width: 52rem; }
+.training-details dd { overflow-wrap: anywhere; }
+/* Gewone filter- en actieknoppen schuiven naar de volgende regel; geen JavaScript nodig voor smalle schermen. */
+.training-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+.training-filters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; align-items: end; gap: 1rem; }
+.training-form .form-check-label, .training-form .form-text { overflow-wrap: anywhere; }
+/* Ook programmatische foutfocus en de scrollbare tabelregio krijgen een duidelijke zichtbare rand. */
+.validation-summary:focus, .training-table-region:focus-visible { outline: 3px solid #185ba0; outline-offset: 3px; }
+@media (max-width: 767px) { .training-filters { grid-template-columns: 1fr; } }
+@media (max-width: 576px) { .training-details { grid-template-columns: 1fr; gap: .15rem; } .training-details dd { margin-bottom: .8rem; } }
+/* Sprint003 rev02: no-JS planning en gedeelde zaalformulieren blijven leesbaar op een smal scherm. */
+.moment-planning, .location-form { max-width: 42rem; }
+.moment-planning label, .location-form label { display: block; margin-top: 1rem; }
+.moment-planning fieldset { min-width: 0; }
+.availability-rooms, .location-form, .moment-planning { overflow-wrap: anywhere; }
+.moment-planning button, .location-form button { white-space: normal; }

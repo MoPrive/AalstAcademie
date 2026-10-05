@@ -1,0 +1,33 @@
+@* Sprint 003: Toont de beheerinstap volgens huidige accountrechten. Een zichtbare link vervangt de routepolicy en serviceautorisatie niet. *@
+@using AalstAcademie.Web.Security
+@using Microsoft.AspNetCore.Authorization
+@* Actuele databasegegevens bepalen of de extra beheerlink zichtbaar is; de route bewaakt haar eigen policy. *@
+@inject CurrentAccountAccessor CurrentAccount
+@inject IAuthorizationService Authorization
+@{
+    ViewData["Title"] = "Start";
+    var account = await CurrentAccount.GetAsync();
+    var administrator = account?.IsApproved == true && account.IsAdministrator;
+    var trainingManagement = (await Authorization.AuthorizeAsync(User, TrainingPolicies.TrainingManagement)).Succeeded;
+}
+<h1>Aalst Academie</h1>
+<p class="lead">Welkom. Je account is goedgekeurd.</p>
+@* Het eigen statusgebied blijft beschikbaar naast de afzonderlijk geautoriseerde beheerfuncties. *@
+<p>Bekijk je accountstatus en de laatste beoordeling.</p>
+<a class="btn btn-primary" href="/Account/Status">Mijn accountstatus</a>
+@if (administrator) { <a class="btn btn-outline-primary" href="/Admin/AccountApplications">Accountaanvragen beheren</a> }
+@* De featurepolicy verbergt deze links bij actuele medewerkers/ingetrokken rollen; routes en services controleren rechten zelf. *@
+@if (trainingManagement)
+{
+    <section class="mt-4" aria-labelledby="TrainingManagementHeading">
+        <h2 id="TrainingManagementHeading" class="h4">Opleidingen beheren</h2>
+        <p>@(administrator ? "Beheer opleidingen van alle lesgevers, wijs doelgroepen toe en maak opleidingscategorieën aan." : "Maak een opleiding aan en beheer je eigen opleidingsgegevens.")</p>
+        <div class="training-actions">
+            <a class="btn btn-primary" asp-controller="TrainingManagement" asp-action="Index">Opleidingenoverzicht</a>
+            <a class="btn btn-outline-primary" asp-controller="TrainingManagement" asp-action="Create">Opleiding aanmaken</a>
+            @if (administrator) { <a class="btn btn-outline-primary" asp-controller="Categories" asp-action="Index">Categorieën beheren</a> }
+            @* Zaalbeheer is een gedeelde beheerdersfunctie, los van het beheren van eigen momenten. *@
+            @if (administrator) { <a class="btn btn-outline-primary" asp-controller="Locations" asp-action="Index">Zalen beheren</a> }
+        </div>
+    </section>
+}
